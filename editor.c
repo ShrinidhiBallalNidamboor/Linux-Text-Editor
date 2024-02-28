@@ -58,7 +58,6 @@ void moveCursorNext(int *cursorRow, int *cursorCol) {
     if (*cursorRow < MAX_COLS - 1) {
     	(*cursorRow)++;
     	*cursorCol=0;
-    	printf("\033[E");
     }
 }
 
@@ -66,20 +65,47 @@ void moveCursorNext(int *cursorRow, int *cursorCol) {
 void deleteCharacter(char text[MAX_ROWS][MAX_COLS], int *cursorRow, int *cursorCol) {
     if (*cursorCol > 0) {
         moveCursorLeft(cursorRow, cursorCol);
-        text[*cursorRow][*cursorCol]=0;
+        for (int i=*cursorCol;i<MAX_ROWS-1;i++){
+    	    text[*cursorRow][i]=text[*cursorRow][i+1];   
+    	}
         printf("\033[P"); // Delete character
     }
 }
 
+void specialCharacter(int *cursorRow, int *cursorCol, int c) {
+    if (c > 0) {
+    	putchar(c);
+    }
+    else if (c < 0) {
+    	printf("✔");
+    }
+}
+
 // Function to insert character at cursor position
-void insertCharacter(char text[MAX_ROWS][MAX_COLS], int *cursorRow, int *cursorCol, char c) {
+void insertCharacter(char text[MAX_ROWS][MAX_COLS], int *cursorRow, int *cursorCol, int c) {
     if (*cursorCol < MAX_COLS) {
-        text[*cursorRow][*cursorCol] = c;
-        putchar(c);
         if (c=='\n') {
+            int valid=0;
+            for (int i=MAX_COLS-2;i>=0;i--){
+            	if (text[*cursorRow][i]=='\n'){
+            	    valid=1;
+            	    break;
+            	}
+            	else if (text[*cursorRow][i]!=0){
+            	    text[*cursorRow][i+1]='\n';
+            	    valid=1;
+            	    break;
+            	}
+            }
+            if (valid==0) {
+            	text[*cursorRow][0]='\n';
+            }
+            specialCharacter(cursorRow, cursorCol, c);
             moveCursorNext(cursorRow, cursorCol);
         }
         else {
+            text[*cursorRow][*cursorCol] = c;
+    	    specialCharacter(cursorRow, cursorCol, c);
             if (*cursorCol == MAX_COLS) {
    	        moveCursorNext(cursorRow, cursorCol);
    	    }
@@ -87,6 +113,15 @@ void insertCharacter(char text[MAX_ROWS][MAX_COLS], int *cursorRow, int *cursorC
    	    	(*cursorCol)++;
    	    }
         }
+    }
+}
+
+void saveCharacter(char c, FILE *file) {
+    if (c > 0) {
+    	fputc(c, file);
+    }
+    else if (c < 0) {
+    	fputs("✔", file);
     }
 }
 
@@ -134,14 +169,16 @@ int main(int argc, char *argv[]) {
             // Write modified text to the file
             for (int i = 0; i < MAX_ROWS; i++) {
             	for (int j = 0; j < MAX_COLS; j++) {
-            		if (text[i][j]!=0) {
-                   		fputc(text[i][j], file);
-                   	}
+            		saveCharacter(text[i][j], file);
                 }
             }
             fclose(file);
             break;
-        } else if (c == 27) { // Escape key for cursor movement
+        } 
+        else if (c == 12) {
+            insertCharacter(text, &cursorRow, &cursorCol, -108);
+        }
+        else if (c == 27) { // Escape key for cursor movement
             if ((c = getchar()) == '[') {
                 switch (getchar()) {
                     case 'A': // Up arrow key
@@ -160,7 +197,10 @@ int main(int argc, char *argv[]) {
             }
         } else if (c == 127) { // Backspace key
             deleteCharacter(text, &cursorRow, &cursorCol);
-        } else {
+        } else if (c == 20) {
+            insertCharacter(text, &cursorRow, &cursorCol, -108);
+        } 
+        else {
             insertCharacter(text, &cursorRow, &cursorCol, c);
         }
     }
