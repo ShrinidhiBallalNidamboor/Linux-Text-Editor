@@ -7,6 +7,8 @@
 #define MAX_ROWS 100
 #define MAX_COLS 100
 
+char buffer[MAX_ROWS];
+
 // Function to turn off canonical mode and echo in terminal
 void initTermios(struct termios *oldTermios) {
     struct termios newTermios;
@@ -73,11 +75,14 @@ void deleteCharacter(char text[MAX_ROWS][MAX_COLS], int *cursorRow, int *cursorC
 }
 
 void specialCharacter(int *cursorRow, int *cursorCol, int c) {
-    if (c > 0) {
-    	putchar(c);
-    }
-    else if (c < 0) {
+    if (c == 20) {
     	printf("✔");
+    }
+    else if (c == 24) {
+    	printf("X");
+    }
+    else {
+    	putchar(c);
     }
 }
 
@@ -117,11 +122,8 @@ void insertCharacter(char text[MAX_ROWS][MAX_COLS], int *cursorRow, int *cursorC
 }
 
 void saveCharacter(char c, FILE *file) {
-    if (c > 0) {
+    if (c != 0) {
     	fputc(c, file);
-    }
-    else if (c < 0) {
-    	fputs("✔", file);
     }
 }
 
@@ -174,9 +176,26 @@ int main(int argc, char *argv[]) {
             }
             fclose(file);
             break;
-        } 
-        else if (c == 12) {
-            insertCharacter(text, &cursorRow, &cursorCol, -108);
+        }
+        else if (c == 2) {
+            //Copy button
+            if (cursorCol==0)
+            for (int i=0;i<MAX_COLS;i++){
+            	buffer[i]=text[cursorRow][i];
+            }
+        }
+        else if (c == 22) {
+            //paste button
+            if (cursorCol==0){
+                for (int i=0;i<MAX_COLS;i++){
+            	    if (buffer[i]!='\n') {
+            	    	insertCharacter(text, &cursorRow, &cursorCol, buffer[i]);
+            	    }
+            	    else{
+            	    	break;
+            	    }
+                }
+            }
         }
         else if (c == 27) { // Escape key for cursor movement
             if ((c = getchar()) == '[') {
@@ -197,9 +216,7 @@ int main(int argc, char *argv[]) {
             }
         } else if (c == 127) { // Backspace key
             deleteCharacter(text, &cursorRow, &cursorCol);
-        } else if (c == 20) {
-            insertCharacter(text, &cursorRow, &cursorCol, -108);
-        } 
+	}
         else {
             insertCharacter(text, &cursorRow, &cursorCol, c);
         }
